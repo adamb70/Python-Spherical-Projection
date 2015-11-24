@@ -2,6 +2,7 @@ import math
 
 
 def spherical_coordinates(i, j, w, h):
+    """ Returns spherical coordinates of the pixel from the output image. """
     theta = 2*float(i)/float(w)-1
     phi = 2*float(j)/float(h)-1
     # phi = lat, theta = long
@@ -9,11 +10,13 @@ def spherical_coordinates(i, j, w, h):
 
 
 def vector_coordinates(phi, theta):
+    """ Returns 3D vector which points to the pixel location inside a sphere. """
     return (math.cos(phi) * math.cos(theta),  # X
             math.sin(phi),                    # Y
             math.cos(phi) * math.sin(theta))  # Z
 
 
+# Assign identifiers to the faces of the cube
 FACE_Z_POS = 1  # Left
 FACE_Z_NEG = 2  # Right
 FACE_Y_POS = 3  # Top
@@ -23,6 +26,7 @@ FACE_X_POS = 6  # Back
 
 
 def get_face(x, y, z):
+    """ Uses 3D vector to find which cube face the pixel lies on. """
     largest_magnitude = max(abs(x), abs(y), abs(z))
     if largest_magnitude - abs(x) < 0.00001:
         return FACE_X_POS if x < 0 else FACE_X_NEG
@@ -33,6 +37,11 @@ def get_face(x, y, z):
 
 
 def raw_face_coordinates(face, x, y, z):
+    """
+    Return coordinates with necessary sign (- or +) depending on which face they lie on.
+
+    From Open-GL specification (chapter 3.8.10) https://www.opengl.org/registry/doc/glspec41.core.20100725.pdf
+    """
     if face == FACE_X_NEG:
         xc = z
         yc = y
@@ -66,10 +75,12 @@ def raw_face_coordinates(face, x, y, z):
 
 
 def raw_coordinates(xc, yc, ma):
+    """ Return 2D coordinates on the specified face relative to the bottom-left corner of the face. Also from Open-GL spec."""
     return (float(xc)/abs(float(ma)) + 1) / 2, (float(yc)/abs(float(ma)) + 1) / 2
 
 
 def face_origin_coordinates(face, n):
+    """ Return bottom-left coordinate of specified face in the input image. """
     if face == FACE_X_NEG:
         return n, n
     elif face == FACE_X_POS:
@@ -85,14 +96,12 @@ def face_origin_coordinates(face, n):
 
 
 def normalized_coordinates(face, x, y, n):
+    """ Return pixel coordinates in the input image where the specified pixel lies. """
     face_coords = face_origin_coordinates(face, n)
-    ##print 'Face Origin:', face_coords
     normalized_x = math.floor(x*n)
     normalized_y = math.floor(y*n)
 
-    ##print normalized_x, normalized_y
-
-    # stop out of bound behaviour
+    # Stop out of bound behaviour
     if normalized_x < 0:
         normalized_x = 0
     elif normalized_x >= n:
@@ -106,18 +115,22 @@ def normalized_coordinates(face, x, y, n):
 
 
 def find_corresponding_pixel(i, j, w, h, n):
+    """
+    :param i: X coordinate of output image pixel
+    :param j: Y coordinate of output image pixel
+    :param w: Width of output image
+    :param h: Height of output image
+    :param n: Height/Width of each square face
+    :return: Pixel coordinates for the input image that a specified pixel in the output image maps to.
+    """
+
     spherical = spherical_coordinates(i, j, w, h)
     vector_coords = vector_coordinates(spherical[0], spherical[1])
-    ##print 'Vector:', vector_coords
     face = get_face(vector_coords[0], vector_coords[1], vector_coords[2])
     raw_face_coords = raw_face_coordinates(face, vector_coords[0], vector_coords[1], vector_coords[2])
 
-    ##print 'RawFaceCords:', raw_face_coords
     cube_coords = raw_coordinates(raw_face_coords[0], raw_face_coords[1], raw_face_coords[2])
-    ##print 'Cube coords:', cube_coords
 
-
-    ##print 'Face:', face
     return normalized_coordinates(face, cube_coords[0], cube_coords[1], n)
 
 
